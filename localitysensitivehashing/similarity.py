@@ -1,6 +1,7 @@
 import sys
 import os
 import mmh3
+from BitVector import *
 
 
 #################### Utilities ######################
@@ -8,7 +9,7 @@ import mmh3
 def listhash(l,seed):
 	val = 0
 	for e in l:
-		val = val ^ mmh3.hash(e, seed)
+		val = val ^ mmh3.hash(e, seed, signed=False)
 	return val 
 
 def ngram(shingle_length, string):
@@ -56,12 +57,44 @@ for file in os.listdir(datafolder):
     f.close()
 
 signatures(docs, q, k)
-#print(docs_signatures.values())
+lshDict0 = {}
+lshDict1 = {}
+lshDict2 = {}
+lshDict3 = {}
 
-for key, value in docs.items():
-    for other_key, other_value in docs.items():
-        if key != other_key:
-            result = jaccard(value, other_value)
+
+for key, val in docs.items():
+    for mh in val:
+        bv = BitVector(intVal = mh, size = 32)
+
+        if bv[0:7].int_val() not in lshDict0:
+            lshDict0[bv[0:7].int_val()] = {key}
+        else:
+            lshDict0[bv[0:7].int_val()].add(key) 
+
+        if bv[8:15].int_val() not in lshDict1:
+            lshDict1[bv[8:15].int_val()] = {key}
+        else:
+            lshDict1[bv[8:15].int_val()].add(key) 
+
+        if bv[16:23].int_val() not in lshDict2:
+            lshDict2[bv[16:23].int_val()] = {key}
+        else:
+            lshDict2[bv[16:23].int_val()].add(key) 
+
+        if bv[24:31].int_val() not in lshDict3:
+            lshDict3[bv[24:31].int_val()] = {key}
+        else:
+            lshDict3[bv[24:31].int_val()].add(key) 
+
+print(lshDict0.items())
+#print(docs.values())
+#print("end"))
+
+#for key, value in docs.items():
+#    for other_key, other_value in docs.items():
+#        if key != other_key:
+#            result = jaccard(value, other_value)
             #print(key + " and " + other_key + " value: " + str(result))
-            if(result >= 0.6):
-                print(key + " and " + other_key + "are similar with a value of: " + str(result))
+#            if(result >= 0.6):
+#                print(key + " and " + other_key + "are similar with a value of: " + str(result))
