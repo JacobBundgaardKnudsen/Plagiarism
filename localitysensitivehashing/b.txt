@@ -1,0 +1,6 @@
+This is sentence nr 1 in document b.
+This is sentence nr 2 in document b.
+This is sentence nr 3 in document b.
+This is sentence nr 4 in document b.
+This is sentence nr 5 in document b.
+This is sentence nr 6 in document b.
