@@ -8,8 +8,8 @@ from gensim.parsing.preprocessing import preprocess_string
 from spacy import load
 
 def loadDoc(dataPath):
-    with open(dataPath, 'r') as loadedDoc:
-        doc = loadedDoc.read().replace('\n', '')
+    with open(dataPath, encoding="utf8", errors='ignore') as loadedDoc:
+        doc = loadedDoc.read()#.replace('\n', '')
     return doc
 
 def preprocess(datafolder):
@@ -83,7 +83,7 @@ k = 100 # number of minhashes
 b = 5 # number of bands
 
 srcfolder = os.path.dirname(os.path.abspath(inspect.stack()[0][1]))
-datafolder = os.path.join(srcfolder, "ats_corpus_small")   # change to ats_corpus for large data set
+datafolder = os.path.join(srcfolder, "WikiPages")   # change to ats_corpus for large data set (ats_corpus_small)
 
 docs = preprocess(datafolder)
 docsSignature = signature(docs, q, k)
