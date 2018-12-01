@@ -31,8 +31,9 @@ def tokenize(text):
     return text.split(".")[:-1]
 
 def display(testFile, similarFiles=[]):
-
-    testDocument = tokenize(open(testFile).read())
+    basePathCorpus = "./"
+    basePathTest = "./"
+    testDocument = tokenize(open(basePathTest + testFile).read())
     sentenceCount = len(testDocument)
     foundInstances = len(similarFiles)
    
@@ -56,7 +57,7 @@ def display(testFile, similarFiles=[]):
             groupedFiles[corpusFile].append((testSentence, corpusSentence))
         
         for fileName, sentences in groupedFiles.items():
-            document = tokenize(open(fileName).read())
+            document = tokenize(open(basePathCorpus + fileName).read())
 
             for testSentence, corpusSentence in sentences:
                 sentenceCount += 1
