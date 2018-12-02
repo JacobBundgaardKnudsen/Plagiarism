@@ -3,14 +3,15 @@ import mmh3
 import os
 import inspect, os
 import pickle
+from collections import defaultdict
+from termcolor import colored
 from gensim.parsing import preprocessing as genPreProc
 from gensim.parsing.preprocessing import preprocess_string
 from spacy import load
-#from PlagiarismDetection import loadDoc, minhash, ngram
 
 def loadDoc(dataPath):
     with open(dataPath, encoding="utf8", errors='ignore') as loadedDoc:
-        doc = loadedDoc.read()#.replace('\n', '')
+        doc = loadedDoc.read()
     return doc
 
 def listhash(l,seed): 
@@ -41,7 +42,6 @@ def preprocessing(filename, folder):
     filepath = os.path.join(datafolder, filename)
     
     document = loadDoc(filepath)
-    print('document loaded')
     genSettings2 = [lambda x: x.lower(), genPreProc.remove_stopwords, genPreProc.stem]
     step1preprocess = ' '.join(preprocess_string(document, filters=genSettings2))
     sentenceSplit = list(nlp(step1preprocess).sents)
@@ -54,13 +54,13 @@ def preprocessing(filename, folder):
 def jaccard_similarity(list1, list2):
     intersection = len(list(set(list1).intersection(list2)))
     union = (len(list1) + len(list2)) - intersection
-    return float(intersection / union)
+    if (union == 0):
+        return 1
+    else:
+        return float(intersection / union)
     
 def checkfileSentence(filename, b, k, M, q):
     textFile = preprocessing(filename, "testDocuments")
-
-    print('preprocessing done')
-    print("Looking for documents similar to " + filename)
     
     similarDocs = set([])
     r = int(k/b)
@@ -76,34 +76,88 @@ def checkfileSentence(filename, b, k, M, q):
             if signatureBand in M[index]:
                 for item in M[index][signatureBand]:
                     similarDocs.add((sentenceName,item))
-            
-    if len(similarDocs):
-        print('Similar sentences')
-        print(similarDocs)
+
+    return similarDocs
+
+########################################################################################################################################
+
+def degree(value):
+    if value == 0:
+        return "none"
+    elif value <= 10:
+        return "low"
+    elif value <= 50:
+        return "medium"
     else:
-        print("no similar sentences")
-    
-    for item in similarDocs:
-        matchingSentenceInfo = item[1].split('_')
-        matchingSentence = preprocessing(matchingSentenceInfo[0], "WikiPages")[int(matchingSentenceInfo[1])]
-        matchingNgram = ngram(q, matchingSentence)
+        return "high"
+
+colors = {
+    "none":"green",
+    "low":"yellow",
+    "medium":"red",
+    "high":"magenta"
+}
+
+def unpack_file_data(file):
+    data = file.split("_")
+    name = data[0]
+    sentence = data[-2]
+    count = data[-1]
+    return (name, sentence, count)
+
+def tokenize(text):
+    return text.split(".")[:-1]
+
+def display(testFile, similarFiles=[]):
+    nlp = load('en')
+    basePathCorpus = "./WikiPages/"
+    basePathTest = "./testDocuments/"
+
+    testDocument = list(nlp(open(basePathTest + testFile,encoding="utf8", errors='ignore').read()).sents)
+
+    sentenceCount = len(testDocument)
+    foundInstances = len(similarFiles)
+   
+    plagiarismDegree = 0
+
+    if foundInstances > 0:
+        plagiarismDegree = (foundInstances/sentenceCount) * 100
+    print("\nOverall result of the analysis\n")
+    print(colored("Plagiarism degree: " + degree(plagiarismDegree), colors[degree(plagiarismDegree)]), end="\n\n")
+
+    if similarFiles:
+        print("similar files have been found")
+
+        groupedFiles = defaultdict(list)
+
+        sentenceCount = 0
+        for fileName in similarFiles:
+            testFile, testSentence, testLength = unpack_file_data(fileName[0])
+            corpusFile, corpusSentence, corpusLength = unpack_file_data(fileName[1])
+            groupedFiles[corpusFile].append((testSentence, corpusSentence))
         
+        for fileName, sentences in groupedFiles.items():
+            document = list(nlp(open(basePathCorpus + fileName,encoding="utf8", errors='ignore').read()).sents)
+
+            for testSentence, corpusSentence in sentences:
+                sentenceCount += 1
+                print("____________ " + str(sentenceCount) + " of " + str(len(similarFiles)) + " ____________", end='\n\n')
+                print("sentence " + testSentence + " in the test document:", end=" ")
+                print(colored(testDocument[int(testSentence)], "cyan"), end="\n\n")
+                print("was found in sentence " + corpusSentence + " in document " + fileName + ":", end=" ")
+                print(colored(document[int(corpusSentence)+1], "blue"), end="\n\n")
+
+                testNgram = ngram(3, testSentence)
+                matchingNgram = ngram(3, corpusSentence)
+                print("The Jaccard similarity is:",jaccard_similarity([tuple(elem) for elem in matchingNgram], [tuple(elem) for elem in testNgram]), end="\n\n")
 
 
-        testDocSentenceInfo = item[0].split('_')
-        testDocSentence = preprocessing(testDocSentenceInfo[0], "testDocuments")[int(testDocSentenceInfo[1])]
-        testNgram = ngram(q, testDocSentence)
-    
-        print(jaccard_similarity([tuple(elem) for elem in matchingNgram], [tuple(elem) for elem in testNgram]))
 
-    return textFile
-
-
-
-print("loading dict")
 with open("LSHDict", "rb") as file:
     LSHDict = pickle.load(file)
 
-print("dict loaded")
+testDocument = "testDoc3.txt"
 
-checkfileSentence('testDoc3.txt', 5, 100, LSHDict, 3)
+output = checkfileSentence(testDocument, 5, 100, LSHDict, 3)
+
+display(testDocument, list(output))
