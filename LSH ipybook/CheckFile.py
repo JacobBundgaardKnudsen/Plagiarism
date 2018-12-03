@@ -108,7 +108,7 @@ def unpack_file_data(file):
 def tokenize(text):
     return text.split(".")[:-1]
 
-def display(testFile, similarFiles=[]):
+def display(testFile, similarFiles=[], threshold=1):
     nlp = load('en')
     basePathCorpus = "./WikiPages/"
     basePathTest = "./testDocuments/"
@@ -140,24 +140,34 @@ def display(testFile, similarFiles=[]):
             document = list(nlp(open(basePathCorpus + fileName,encoding="utf8", errors='ignore').read()).sents)
 
             for testSentence, corpusSentence in sentences:
-                sentenceCount += 1
-                print("____________ " + str(sentenceCount) + " of " + str(len(similarFiles)) + " ____________", end='\n\n')
-                print("sentence " + testSentence + " in the test document:", end=" ")
-                print(colored(testDocument[int(testSentence)], "cyan"), end="\n\n")
-                print("was found in sentence " + corpusSentence + " in document " + fileName + ":", end=" ")
-                print(colored(document[int(corpusSentence)+1], "blue"), end="\n\n")
 
                 testNgram = ngram(3, testSentence)
                 matchingNgram = ngram(3, corpusSentence)
-                print("The Jaccard similarity is:",jaccard_similarity([tuple(elem) for elem in matchingNgram], [tuple(elem) for elem in testNgram]), end="\n\n")
+                jaccardSim = jaccard_similarity([tuple(elem) for elem in matchingNgram], [tuple(elem) for elem in testNgram])
+
+                if (jaccardSim >= threshold):
+                    sentenceCount += 1
+                    print("____________ " + str(sentenceCount) + " of " + str(len(similarFiles)) + " ____________", end='\n\n')
+                    print("sentence " + testSentence + " in the test document:", end=" ")
+                    print(colored(testDocument[int(testSentence)], "cyan"), end="\n\n")
+                    print("was found in sentence " + corpusSentence + " in document " + fileName + ":", end=" ")
+                    print(colored(document[int(corpusSentence)+1], "blue"), end="\n\n")
+
+                    testNgram = ngram(3, testSentence)
+                    matchingNgram = ngram(3, corpusSentence)
+                    #print("The Jaccard similarity is:",jaccard_similarity([tuple(elem) for elem in matchingNgram], [tuple(elem) for elem in testNgram]), end="\n\n")
 
 
 
 with open("LSHDict", "rb") as file:
     LSHDict = pickle.load(file)
 
-testDocument = "testDoc3.txt"
-
+testDocument = sys.argv[1]
 output = checkfileSentence(testDocument, 5, 100, LSHDict, 3)
 
-display(testDocument, list(output))
+
+if len(sys.argv) >= 3:
+    threshold = int(sys.argv[2])
+    display(testDocument, list(output), threshold)
+else:
+    display(testDocument, list(output))
