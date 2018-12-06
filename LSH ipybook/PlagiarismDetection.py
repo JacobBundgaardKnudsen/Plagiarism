@@ -1,6 +1,5 @@
 import sys
 import mmh3
-import os
 import inspect, os
 import pickle
 from gensim.parsing import preprocessing as genPreProc
@@ -23,13 +22,17 @@ def preprocess(datafolder):
         filepath = os.path.join(datafolder, file)
         if not file.startswith('.'):
             document = loadDoc(filepath)
+            sentenceSplit = list(nlp(document).sents)
+            gensimSettings = [lambda x: x.lower(), genPreProc.remove_stopwords, genPreProc.stem,
+                              genPreProc.strip_non_alphanum, genPreProc.strip_multiple_whitespaces]
+            sentencePreprocess = [' '.join(preprocess_string(str(sentence), filters=gensimSettings)) for sentence in sentenceSplit]
 
-            genSettings2 = [lambda x: x.lower(), genPreProc.remove_stopwords, genPreProc.stem]
-            step1preprocess = ' '.join(preprocess_string(document, filters=genSettings2))
-            sentenceSplit = list(nlp(step1preprocess).sents) #splitting document into sentences
-
-            genSettings3 = [lambda x: genPreProc.strip_non_alphanum(x), genPreProc.strip_multiple_whitespaces]
-            sentencePreprocess = [' '.join(preprocess_string(str(ite), filters=genSettings3)) for ite in sentenceSplit]
+            # genSettings2 = [lambda x: x.lower(), genPreProc.remove_stopwords, genPreProc.stem]
+            # step1preprocess = ' '.join(preprocess_string(document, filters=genSettings2))
+            # sentenceSplit = list(nlp(step1preprocess).sents) #splitting document into sentences
+            #
+            # genSettings3 = [lambda x: genPreProc.strip_non_alphanum(x), genPreProc.strip_multiple_whitespaces]
+            # sentencePreprocess = [' '.join(preprocess_string(str(ite), filters=genSettings3)) for ite in sentenceSplit]
 
             docs[os.path.basename(filepath)] = sentencePreprocess
     return docs
