@@ -1,6 +1,5 @@
 import sys
 import mmh3
-import os
 import inspect, os
 import pickle
 from collections import defaultdict
@@ -8,6 +7,9 @@ from termcolor import colored
 from gensim.parsing import preprocessing as genPreProc
 from gensim.parsing.preprocessing import preprocess_string
 from spacy import load
+import time
+
+time_start = time.clock()
 
 def loadDoc(dataPath):
     with open(dataPath, encoding="utf8", errors='ignore') as loadedDoc:
@@ -108,12 +110,15 @@ def unpack_file_data(file):
 def tokenize(text):
     return text.split(".")[:-1]
 
-def display(testFile, similarFiles=[], threshold=1):
+def display(testFile, similarFiles=[], threshold=0.8):
     nlp = load('en')
     basePathCorpus = "./WikiPages/"
     basePathTest = "./testDocuments/"
 
-    testDocument = list(nlp(open(basePathTest + testFile,encoding="utf8", errors='ignore').read()).sents)
+    #testDocument = list(nlp(open(basePathTest + testFile,encoding="utf8", errors='ignore').read()).sents)
+
+    testDocument = preprocessing(testFile, "testDocuments")
+
 
     sentenceCount = len(testDocument)
     foundInstances = len(similarFiles)
@@ -137,37 +142,51 @@ def display(testFile, similarFiles=[], threshold=1):
             groupedFiles[corpusFile].append((testSentence, corpusSentence))
         
         for fileName, sentences in groupedFiles.items():
-            document = list(nlp(open(basePathCorpus + fileName,encoding="utf8", errors='ignore').read()).sents)
+            #document = list(nlp(open(basePathCorpus + fileName,encoding="utf8", errors='ignore').read()).sents)
+            
+            document = preprocessing(fileName, "WikiPages")
 
             for testSentence, corpusSentence in sentences:
 
                 testNgram = ngram(3, testSentence)
                 matchingNgram = ngram(3, corpusSentence)
-                jaccardSim = jaccard_similarity([tuple(elem) for elem in matchingNgram], [tuple(elem) for elem in testNgram])
+                #jaccardSim = jaccard_similarity([tuple(elem) for elem in matchingNgram], [tuple(elem) for elem in testNgram])
 
-                if (jaccardSim >= threshold):
-                    sentenceCount += 1
-                    print("____________ " + str(sentenceCount) + " of " + str(len(similarFiles)) + " ____________", end='\n\n')
-                    print("sentence " + testSentence + " in the test document:", end=" ")
-                    print(colored(testDocument[int(testSentence)], "cyan"), end="\n\n")
-                    print("was found in sentence " + corpusSentence + " in document " + fileName + ":", end=" ")
-                    print(colored(document[int(corpusSentence)+1], "blue"), end="\n\n")
+                #if (jaccardSim >= threshold):
+                sentenceCount += 1
+                print("____________ " + str(sentenceCount) + " of " + str(len(similarFiles)) + " ____________", end='\n\n')
+                print("sentence " + testSentence + " in the test document:", end=" ")
+                print(colored(testDocument[int(testSentence)], "cyan"), end="\n\n")
+                print("was found in sentence " + corpusSentence + " in document " + fileName + ":", end=" ")
+                print(colored(document[int(corpusSentence)], "blue"), end="\n\n")
 
-                    testNgram = ngram(3, testSentence)
-                    matchingNgram = ngram(3, corpusSentence)
-                    #print("The Jaccard similarity is:",jaccard_similarity([tuple(elem) for elem in matchingNgram], [tuple(elem) for elem in testNgram]), end="\n\n")
+                testNgram = ngram(3, testSentence)
+                matchingNgram = ngram(3, corpusSentence)
+                #print("The Jaccard similarity is:",jaccard_similarity([tuple(elem) for elem in matchingNgram], [tuple(elem) for elem in testNgram]), end="\n\n")
 
-
+q = 4 # length of shingle
+k = 100 # number of minhashes
+b = 5 # number of bands
 
 with open("LSHDict", "rb") as file:
     LSHDict = pickle.load(file)
 
 testDocument = sys.argv[1]
-output = checkfileSentence(testDocument, 5, 100, LSHDict, 3)
+output = checkfileSentence(testDocument, b, k, LSHDict, q)
 
+#print(output)
 
 if len(sys.argv) >= 3:
-    threshold = int(sys.argv[2])
+    threshold = float(sys.argv[2])
     display(testDocument, list(output), threshold)
 else:
     display(testDocument, list(output))
+
+time_elapsed = (time.clock() - time_start)
+print(time_elapsed)
+
+#testNgram = ngram(3, "found abdallah ibn yasin almoravid capit marrakesh citi rule hous found 1062")
+#matchingNgram = ngram(3, "found abdallah jkn yasin almoravid capit marrakesh citi rule hous found 1062")
+#jaccardSim = jaccard_similarity([tuple(elem) for elem in matchingNgram], [tuple(elem) for elem in testNgram])
+#print(jaccardSim)
+

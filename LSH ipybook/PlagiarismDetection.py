@@ -6,6 +6,9 @@ import pickle
 from gensim.parsing import preprocessing as genPreProc
 from gensim.parsing.preprocessing import preprocess_string
 from spacy import load
+import time
+
+time_start = time.clock()
 
 def loadDoc(dataPath):
     with open(dataPath, encoding="utf8", errors='ignore') as loadedDoc:
@@ -88,3 +91,6 @@ datafolder = os.path.join(srcfolder, "WikiPages")   # change to ats_corpus for l
 docs = preprocess(datafolder)
 docsSignature = signature(docs, q, k)
 lshSentence(docsSignature, b, k)
+
+time_elapsed = (time.clock() - time_start)
+print(time_elapsed)
