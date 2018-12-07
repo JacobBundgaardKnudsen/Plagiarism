@@ -158,7 +158,7 @@ def display(testFile, similarFiles=[], threshold=0.8):
 
 q = 3 # length of shingle
 k = 50 # number of minhashes
-b = 10 # number of bands
+b = 10 # number of buckets
 
 with open("LSHDict", "rb") as file:
     LSHDict = pickle.load(file)
