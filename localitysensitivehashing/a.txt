@@ -1,6 +1,0 @@
-This is sentence nr 1 in document a.
-This is sentence nr 2 in document a.
-This is sentence nr 3 in document a.
-This is sentence nr 4 in document a.
-This is sentence nr 5 in document a.
-This is sentence nr 6 in document a.
