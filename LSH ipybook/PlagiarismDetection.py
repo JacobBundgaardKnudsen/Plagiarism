@@ -5,50 +5,45 @@ import pickle
 from gensim.parsing import preprocessing as genPreProc
 from gensim.parsing.preprocessing import preprocess_string
 from spacy import load
-import time
 
-time_start = time.clock()
-
+#loads a textfile
 def loadDoc(dataPath):
     with open(dataPath, encoding="utf8", errors='ignore') as loadedDoc:
-        doc = loadedDoc.read()#.replace('\n', '')
+        doc = loadedDoc.read()
     return doc
 
+#processes the input text
 def preprocess(datafolder):
     docs = {}
     nlp = load('en')
     
-    for file in os.listdir(datafolder):
+    for file in os.listdir(datafolder): #going through all the files in the folder
         filepath = os.path.join(datafolder, file)
         if not file.startswith('.'):
             document = loadDoc(filepath)
             sentenceSplit = list(nlp(document).sents)
-            gensimSettings = [lambda x: x.lower(), genPreProc.remove_stopwords, genPreProc.stem,
+            gensimSettings = [lambda x: x.lower(), genPreProc.remove_stopwords, genPreProc.stem, #making the text uniform and removing stopwords
                               genPreProc.strip_non_alphanum, genPreProc.strip_multiple_whitespaces]
             sentencePreprocess = [' '.join(preprocess_string(str(sentence), filters=gensimSettings)) for sentence in sentenceSplit]
-
-            # genSettings2 = [lambda x: x.lower(), genPreProc.remove_stopwords, genPreProc.stem]
-            # step1preprocess = ' '.join(preprocess_string(document, filters=genSettings2))
-            # sentenceSplit = list(nlp(step1preprocess).sents) #splitting document into sentences
-            #
-            # genSettings3 = [lambda x: genPreProc.strip_non_alphanum(x), genPreProc.strip_multiple_whitespaces]
-            # sentencePreprocess = [' '.join(preprocess_string(str(ite), filters=genSettings3)) for ite in sentenceSplit]
 
             docs[os.path.basename(filepath)] = sentencePreprocess
     return docs
 
+#Hashes a list
 def listhash(l,seed): 
     val = 0
     for e in l:
         val = val ^ mmh3.hash(e, seed)
     return val 
 
+#create shingles
 def ngram(shingle_length, string):
     tokens = string.split()
     shingles = [tokens[i:i+shingle_length] for i in range(len(tokens) - shingle_length + 1)]
     
     return shingles
 
+#finds the minimum hashvalue
 def minhash(shingles, k):
     min_hashes = [sys.maxsize] * k
     for i in range(k):
@@ -58,6 +53,7 @@ def minhash(shingles, k):
                 min_hashes[i] = shingle_hash
     return min_hashes
 
+#finds the minimum hashvalue
 def signature(docs, q, k):
     docsSignature = {}
     for file_name, sentences in docs.items():
@@ -67,6 +63,7 @@ def signature(docs, q, k):
         docsSignature[file_name] = signatures
     return docsSignature
 
+#creates a dictionary with with a subset of the signature as keys and the document sentences as value
 def lshSentence(docsSignature, b, k):
     r = int(k/b)
     M = [{}]*b
@@ -85,15 +82,12 @@ def lshSentence(docsSignature, b, k):
         pickle.dump(M, file)
 
 q = 3 # length of shingle
-k = 100 # number of minhashes
-b = 5 # number of bands
+k = 50 # number of minhashes
+b = 10 # number of bands
 
 srcfolder = os.path.dirname(os.path.abspath(inspect.stack()[0][1]))
-datafolder = os.path.join(srcfolder, "WikiPages")   # change to ats_corpus for large data set (ats_corpus_small)
+datafolder = os.path.join(srcfolder, "WikiPages")
 
 docs = preprocess(datafolder)
 docsSignature = signature(docs, q, k)
 lshSentence(docsSignature, b, k)
-
-time_elapsed = (time.clock() - time_start)
-print(time_elapsed)

@@ -7,27 +7,28 @@ from termcolor import colored
 from gensim.parsing import preprocessing as genPreProc
 from gensim.parsing.preprocessing import preprocess_string
 from spacy import load
-import time
 
-time_start = time.clock()
-
+#loads a textfile
 def loadDoc(dataPath):
     with open(dataPath, encoding="utf8", errors='ignore') as loadedDoc:
         doc = loadedDoc.read()
     return doc
 
+#Hashes a list
 def listhash(l,seed): 
     val = 0
     for e in l:
         val = val ^ mmh3.hash(e, seed)
     return val 
 
+#create shingles
 def ngram(shingle_length, string):
     tokens = string.split()
     shingles = [tokens[i:i+shingle_length] for i in range(len(tokens) - shingle_length + 1)]
     
     return shingles
 
+#finds the minimum hashvalue
 def minhash(shingles, k):
     min_hashes = [sys.maxsize] * k
     for i in range(k):
@@ -37,22 +38,24 @@ def minhash(shingles, k):
                 min_hashes[i] = shingle_hash
     return min_hashes
 
+#processes the input text
 def preprocessing(filename, folder):
     nlp = load('en')
-    srcfolder = os.path.dirname(os.path.abspath(inspect.stack()[0][1]))
-    datafolder = os.path.join(srcfolder, folder)   # change to ats_corpus for large data set
-    filepath = os.path.join(datafolder, filename)
     
+    #chosing the target folder and loading the selected file
+    srcfolder = os.path.dirname(os.path.abspath(inspect.stack()[0][1]))
+    datafolder = os.path.join(srcfolder, folder) 
+    filepath = os.path.join(datafolder, filename)
     document = loadDoc(filepath)
-    genSettings2 = [lambda x: x.lower(), genPreProc.remove_stopwords, genPreProc.stem]
-    step1preprocess = ' '.join(preprocess_string(document, filters=genSettings2))
-    sentenceSplit = list(nlp(step1preprocess).sents)
 
-    genSettings3 = [lambda x: genPreProc.strip_non_alphanum(x), genPreProc.strip_multiple_whitespaces]
-    sentencePreprocess = [' '.join(preprocess_string(str(ite), filters=genSettings3)) for ite in sentenceSplit]
+    sentenceSplit = list(nlp(document).sents) #splits a text into sentences
+    gensimSettings = [lambda x: x.lower(), genPreProc.remove_stopwords, genPreProc.stem,
+                        genPreProc.strip_non_alphanum, genPreProc.strip_multiple_whitespaces]
+    sentencePreprocess = [' '.join(preprocess_string(str(sentence), filters=gensimSettings)) for sentence in sentenceSplit]
 
     return sentencePreprocess
 
+#calculates the jaccard similarity
 def jaccard_similarity(list1, list2):
     intersection = len(list(set(list1).intersection(list2)))
     union = (len(list1) + len(list2)) - intersection
@@ -61,28 +64,29 @@ def jaccard_similarity(list1, list2):
     else:
         return float(intersection / union)
     
+
 def checkfileSentence(filename, b, k, M, q):
-    textFile = preprocessing(filename, "testDocuments")
+    textFile = preprocessing(filename, "testDocuments") #loading the text with preprocessing
     
     similarDocs = set([])
     r = int(k/b)
     signatures = []
+
     for sentence in textFile:
-        signatures.append(minhash(ngram(q, sentence), k))
+        signatures.append(minhash(ngram(q, sentence), k)) #creating a signature for each sentence
     
     for signature in signatures:
-        for band in range(0, k, r):      
+        for band in range(0, k, r):
             index = int(band/r)
-            signatureBand = tuple(signature[band:band+r])
-            sentenceName = filename + '_' + str(signatures.index(signature)) + '_' + str(len(signatures))
+            signatureBand = tuple(signature[band:band+r]) #selecting the bucket
+            sentenceName = filename + '_' + str(signatures.index(signature)) + '_' + str(len(signatures)) #creating the value in the dict with the appropriate information
             if signatureBand in M[index]:
                 for item in M[index][signatureBand]:
-                    similarDocs.add((sentenceName,item))
+                    similarDocs.add((sentenceName,item)) #saving the document information in the dictionary under the correct bucket
 
     return similarDocs
 
-########################################################################################################################################
-
+#Different degrees of plagiarism
 def degree(value):
     if value == 0:
         return "none"
@@ -93,6 +97,7 @@ def degree(value):
     else:
         return "high"
 
+#output colors
 colors = {
     "none":"green",
     "low":"yellow",
@@ -100,6 +105,7 @@ colors = {
     "high":"magenta"
 }
 
+#unpacking data, used when loading dump
 def unpack_file_data(file):
     data = file.split("_")
     name = data[0]
@@ -107,18 +113,10 @@ def unpack_file_data(file):
     count = data[-1]
     return (name, sentence, count)
 
-def tokenize(text):
-    return text.split(".")[:-1]
 
+#formating text and printing the correct output
 def display(testFile, similarFiles=[], threshold=0.8):
-    nlp = load('en')
-    basePathCorpus = "./WikiPages/"
-    basePathTest = "./testDocuments/"
-
-    #testDocument = list(nlp(open(basePathTest + testFile,encoding="utf8", errors='ignore').read()).sents)
-
-    testDocument = preprocessing(testFile, "testDocuments")
-
+    testDocument = preprocessing(testFile, "testDocuments") #loading file
 
     sentenceCount = len(testDocument)
     foundInstances = len(similarFiles)
@@ -134,39 +132,33 @@ def display(testFile, similarFiles=[], threshold=0.8):
         print("similar files have been found")
 
         groupedFiles = defaultdict(list)
-
         sentenceCount = 0
+
+        #unpacking the files
         for fileName in similarFiles:
             testFile, testSentence, testLength = unpack_file_data(fileName[0])
             corpusFile, corpusSentence, corpusLength = unpack_file_data(fileName[1])
             groupedFiles[corpusFile].append((testSentence, corpusSentence))
         
-        for fileName, sentences in groupedFiles.items():
-            #document = list(nlp(open(basePathCorpus + fileName,encoding="utf8", errors='ignore').read()).sents)
-            
+        for fileName, sentences in groupedFiles.items():            
             document = preprocessing(fileName, "WikiPages")
 
             for testSentence, corpusSentence in sentences:
-
                 testNgram = ngram(3, testSentence)
                 matchingNgram = ngram(3, corpusSentence)
-                #jaccardSim = jaccard_similarity([tuple(elem) for elem in matchingNgram], [tuple(elem) for elem in testNgram])
+                jaccardSim = jaccard_similarity([tuple(elem) for elem in matchingNgram], [tuple(elem) for elem in testNgram])
 
-                #if (jaccardSim >= threshold):
-                sentenceCount += 1
-                print("____________ " + str(sentenceCount) + " of " + str(len(similarFiles)) + " ____________", end='\n\n')
-                print("sentence " + testSentence + " in the test document:", end=" ")
-                print(colored(testDocument[int(testSentence)], "cyan"), end="\n\n")
-                print("was found in sentence " + corpusSentence + " in document " + fileName + ":", end=" ")
-                print(colored(document[int(corpusSentence)], "blue"), end="\n\n")
+                if (jaccardSim >= threshold): #checking that the jaccard is high enough
+                    sentenceCount += 1
+                    print("____________ " + str(sentenceCount) + " of " + str(len(similarFiles)) + " ____________", end='\n\n')
+                    print("sentence " + testSentence + " in the test document:", end=" ")
+                    print(colored(testDocument[int(testSentence)], "cyan"), end="\n\n")
+                    print("was found in sentence " + corpusSentence + " in document " + fileName + ":", end=" ")
+                    print(colored(document[int(corpusSentence)], "blue"), end="\n\n")
 
-                testNgram = ngram(3, testSentence)
-                matchingNgram = ngram(3, corpusSentence)
-                #print("The Jaccard similarity is:",jaccard_similarity([tuple(elem) for elem in matchingNgram], [tuple(elem) for elem in testNgram]), end="\n\n")
-
-q = 4 # length of shingle
-k = 100 # number of minhashes
-b = 5 # number of bands
+q = 3 # length of shingle
+k = 50 # number of minhashes
+b = 10 # number of bands
 
 with open("LSHDict", "rb") as file:
     LSHDict = pickle.load(file)
@@ -174,19 +166,9 @@ with open("LSHDict", "rb") as file:
 testDocument = sys.argv[1]
 output = checkfileSentence(testDocument, b, k, LSHDict, q)
 
-#print(output)
-
+#Checks if the user provided 1 or 2 arguments
 if len(sys.argv) >= 3:
     threshold = float(sys.argv[2])
     display(testDocument, list(output), threshold)
 else:
     display(testDocument, list(output))
-
-time_elapsed = (time.clock() - time_start)
-print(time_elapsed)
-
-#testNgram = ngram(3, "found abdallah ibn yasin almoravid capit marrakesh citi rule hous found 1062")
-#matchingNgram = ngram(3, "found abdallah jkn yasin almoravid capit marrakesh citi rule hous found 1062")
-#jaccardSim = jaccard_similarity([tuple(elem) for elem in matchingNgram], [tuple(elem) for elem in testNgram])
-#print(jaccardSim)
-
